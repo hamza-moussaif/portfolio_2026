@@ -1,18 +1,10 @@
-import { defineConfig } from "vite";
-import { TanStackStartVite } from "@tanstack/start-vite-plugin";
-import react from "@vitejs/plugin-react";
-import tsconfigPaths from "vite-tsconfig-paths";
-import tailwindcss from "@tailwindcss/vite";
+import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
-  plugins: [
-    tsconfigPaths(),
-    TanStackStartVite({
-      server: {
-        preset: "netlify",
-      },
-    }),
-    react(),
-    tailwindcss(),
-  ],
+  tanstackStart: {
+    server: {
+      entry: "server",
+      preset: "netlify",
+    },
+  },
 });
