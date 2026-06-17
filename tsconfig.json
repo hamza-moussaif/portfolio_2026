@@ -1,5 +1,5 @@
 {
-  "extends": "@lovable.dev/vite-tanstack-config",
+  "extends": "@lovable.dev/vite-tanstack-config/tsconfig.json",
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "eslint.config.js"],
   "compilerOptions": {
     "target": "ES2022",
