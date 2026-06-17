@@ -1,3 +1,8 @@
+[build]
+  command = "npm run build"
+  # Most Vite apps output to dist. If your TanStack Start build outputs to a different folder (like .output/public), change this!
+  publish = "dist"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
