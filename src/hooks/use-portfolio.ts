@@ -1,5 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 
+export function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
+}
+
 export function useReveal<T extends HTMLElement>(threshold = 0.15) {
   const ref = useRef<T | null>(null);
   useEffect(() => {
@@ -69,7 +81,8 @@ export function useCountUp(target: number, duration = 1500) {
 export function useActiveSection(ids: string[]) {
   const [active, setActive] = useState(ids[0]);
   useEffect(() => {
-    const onScroll = () => {
+    let raf = 0;
+    const compute = () => {
       const y = window.scrollY + window.innerHeight * 0.35;
       let current = ids[0];
       for (const id of ids) {
@@ -78,9 +91,18 @@ export function useActiveSection(ids: string[]) {
       }
       setActive(current);
     };
-    onScroll();
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(compute);
+    };
+    compute();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(raf);
+    };
   }, [ids]);
   return active;
 }
@@ -90,6 +112,7 @@ export function useParallax<T extends HTMLElement>(speed = 0.6) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let raf = 0;
     const update = () => {
       const rect = el.getBoundingClientRect();

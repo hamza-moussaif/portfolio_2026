@@ -1,16 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
-  aboutStats,
-  certifications,
-  contactLinks,
-  experiences,
-  languages,
-  navLinks,
-  projects,
-  skillCategories,
-} from "@/lib/portfolio-data";
-import {
   useActiveSection,
   useCountUp,
   useParallax,
@@ -18,6 +8,8 @@ import {
   useTyping,
 } from "@/hooks/use-portfolio";
 import { Cursor } from "@/components/Cursor";
+import { useLanguage, type Experience, type Project } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 
 export const Route = createFileRoute("/")({ component: Index });
 
@@ -31,19 +23,96 @@ const SECTION_IDS = [
   "contact",
 ];
 
+function SunIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
+
+function ThemeToggle({ className = "" }: { className?: string }) {
+  const { theme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-label={theme === "dark" ? t.theme.toLight : t.theme.toDark}
+      className={`icon-btn ${className}`}
+    >
+      {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+    </button>
+  );
+}
+
+function LangToggle({ className = "" }: { className?: string }) {
+  const { t, toggleLang } = useLanguage();
+  return (
+    <button
+      type="button"
+      onClick={toggleLang}
+      aria-label={t.langToggle.label}
+      className={`icon-btn font-mono text-[11px] font-semibold tracking-wider ${className}`}
+    >
+      {t.langToggle.target}
+    </button>
+  );
+}
+
 function Nav() {
+  const { t } = useLanguage();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const active = useActiveSection(SECTION_IDS);
   const linksRef = useRef<HTMLUListElement>(null);
   const [dot, setDot] = useState({ left: 0, width: 0 });
 
+  const navLinks: { label: string; href: string }[] = [
+    { label: t.nav.about, href: "#about" },
+    { label: t.nav.work, href: "#experience" },
+    { label: t.nav.skills, href: "#skills" },
+    { label: t.nav.projects, href: "#projects" },
+    { label: t.nav.contact, href: "#contact" },
+  ];
+
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 80);
-    onScroll();
+    let raf = 0;
+    const check = () => setScrolled(window.scrollY > 80);
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(check);
+    };
+    check();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   useEffect(() => {
     const ul = linksRef.current;
@@ -55,12 +124,13 @@ function Nav() {
     }
     const li = ul.children[idx] as HTMLElement | undefined;
     if (li) setDot({ left: li.offsetLeft + li.offsetWidth / 2 - 2.5, width: 5 });
-  }, [active]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, t]);
 
   return (
     <header
       className={`fixed top-0 inset-x-0 z-40 transition-all duration-300 ${
-        scrolled ? "backdrop-blur-xl bg-[rgba(250,250,248,0.88)] border-b border-border" : ""
+        scrolled ? "backdrop-blur-xl bg-(--header-bg) border-b border-border" : ""
       }`}
     >
       <nav className="max-w-[1200px] mx-auto px-8 h-20 flex items-center justify-between">
@@ -94,20 +164,34 @@ function Nav() {
             style={{ left: dot.left, opacity: dot.width ? 1 : 0 }}
           />
         </ul>
-        <button
-          aria-label="Menu"
-          onClick={() => setOpen(true)}
-          className="md:hidden flex flex-col gap-1.5 anim-nav-item"
-          style={{ animationDelay: "240ms" }}
-        >
-          <span className="w-6 h-px bg-ink" />
-          <span className="w-6 h-px bg-ink" />
-        </button>
+        <div className="hidden md:flex items-center gap-3 anim-nav-item" style={{ animationDelay: "460ms" }}>
+          <LangToggle />
+          <ThemeToggle />
+        </div>
+        <div className="md:hidden flex items-center gap-2 anim-nav-item" style={{ animationDelay: "240ms" }}>
+          <LangToggle />
+          <ThemeToggle />
+          <button
+            aria-label={t.menu.open}
+            aria-expanded={open}
+            aria-controls="mobile-menu"
+            onClick={() => setOpen(true)}
+            className="flex flex-col gap-1.5 p-2"
+          >
+            <span className="w-6 h-px bg-ink" />
+            <span className="w-6 h-px bg-ink" />
+          </button>
+        </div>
       </nav>
       {open && (
-        <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center gap-8 md:hidden">
+        <div
+          id="mobile-menu"
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center gap-8 md:hidden"
+        >
           <button
-            aria-label="Close"
+            aria-label={t.menu.close}
             onClick={() => setOpen(false)}
             className="absolute top-7 right-8 text-3xl"
           >
@@ -130,7 +214,7 @@ function Nav() {
 }
 
 function RotatingBadge() {
-  const text = "AVAILABLE FOR CDI · CASABLANCA 2026 · ";
+  const { t } = useLanguage();
   return (
     <div className="relative w-[140px] h-[140px] md:w-[160px] md:h-[160px]">
       <svg viewBox="0 0 200 200" className="w-full h-full anim-spin-slow">
@@ -141,7 +225,7 @@ function RotatingBadge() {
           fill="var(--ink)"
           style={{ fontFamily: "var(--font-mono)", fontSize: "11px", letterSpacing: "0.55em" }}
         >
-          <textPath href="#circlePath">{text.repeat(1)}</textPath>
+          <textPath href="#circlePath">{t.hero.badge}</textPath>
         </text>
       </svg>
       <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-orange" />
@@ -150,7 +234,8 @@ function RotatingBadge() {
 }
 
 function Hero() {
-  const typed = useTyping("Java Backend Engineer · Spring Boot · Microservices", 28, 800);
+  const { t } = useLanguage();
+  const typed = useTyping(t.hero.typingText, 28, 800);
   return (
     <section
       id="hero"
@@ -160,7 +245,7 @@ function Hero() {
         <RotatingBadge />
       </div>
       <p className="font-mono text-[11px] tracking-[0.2em] uppercase text-ghost anim-rise-800">
-        Portfolio · 2026
+        {t.hero.eyebrow}
       </p>
       <h1
         className="mt-8 font-display font-bold text-ink leading-[0.9] tracking-[-0.03em]"
@@ -177,20 +262,20 @@ function Hero() {
       </p>
       <div className="anim-rise-1000 mt-6">
         <span className="pill">
-          <span className="dot" /> Open to CDI — Sept 2026
+          <span className="dot" /> {t.hero.pillText}
         </span>
       </div>
       <div className="anim-rise-1200 mt-10 flex flex-wrap gap-4">
         <a href="#projects" className="btn-primary">
-          <span>View Work</span>
+          <span>{t.hero.viewWork}</span>
           <span className="arrow">→</span>
         </a>
         <a href="/hamza-moussaif-cv.pdf" download className="btn-secondary">
-          <span>Download CV</span>
+          <span>{t.hero.downloadCv}</span>
         </a>
       </div>
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 anim-rise-1200">
-        <span className="font-mono text-[10px] tracking-[0.3em] text-ghost">SCROLL</span>
+        <span className="font-mono text-[10px] tracking-[0.3em] text-ghost">{t.hero.scroll}</span>
         <span className="anim-bounce text-ghost text-xl leading-none">↓</span>
       </div>
     </section>
@@ -248,20 +333,16 @@ function Stat({
 }
 
 function About() {
+  const { t } = useLanguage();
   const grid = useReveal<HTMLDivElement>();
   return (
     <section id="about" className="max-w-[1200px] mx-auto px-8 py-32 scroll-mt-24 relative z-10">
-      <SectionHead num="02" label="About" title="Backend engineer. Clean code. Tested to 100%." />
+      <SectionHead num="02" label={t.about.label} title={t.about.title} />
       <div ref={grid} className="reveal grid md:grid-cols-2 gap-16 items-start">
         <div>
-          <p className="text-base leading-[1.9] text-muted-foreground">
-            Graduating EMSI MIAGE engineer from Casablanca with real-world experience at Crédit du
-            Maroc and Inetum. I build microservices, secure REST APIs, and write tests obsessively.
-            I work in Java and Spring Boot, think in sprints, and communicate fluently in French,
-            Arabic, and English.
-          </p>
+          <p className="text-base leading-[1.9] text-muted-foreground">{t.about.body}</p>
           <div className="mt-8 flex flex-wrap gap-2.5">
-            {languages.map((l) => (
+            {t.about.languages.map((l) => (
               <span
                 key={l.name}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface text-sm"
@@ -273,7 +354,7 @@ function About() {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          {aboutStats.map((s) => (
+          {t.about.stats.map((s) => (
             <Stat key={s.label} n={s.number} prefix={s.prefix} suffix={s.suffix} label={s.label} />
           ))}
         </div>
@@ -282,7 +363,15 @@ function About() {
   );
 }
 
-function ExperienceItem({ x, i }: { x: (typeof experiences)[number]; i: number }) {
+function ExperienceItem({
+  x,
+  i,
+  currentLabel,
+}: {
+  x: Experience;
+  i: number;
+  currentLabel: string;
+}) {
   const ref = useReveal<HTMLLIElement>(0.2);
   return (
     <li
@@ -302,7 +391,7 @@ function ExperienceItem({ x, i }: { x: (typeof experiences)[number]; i: number }
           <h3 className="font-display text-2xl text-ink">{x.role}</h3>
           {x.current && (
             <span className="font-mono text-[10px] uppercase tracking-[0.1em] px-2 py-1 bg-orange text-white rounded">
-              Current
+              {currentLabel}
             </span>
           )}
         </div>
@@ -315,12 +404,12 @@ function ExperienceItem({ x, i }: { x: (typeof experiences)[number]; i: number }
           ))}
         </ul>
         <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2">
-          {x.tags.map((t) => (
+          {x.tags.map((tag) => (
             <span
-              key={t}
+              key={tag}
               className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground"
             >
-              {t}
+              {tag}
             </span>
           ))}
         </div>
@@ -330,16 +419,17 @@ function ExperienceItem({ x, i }: { x: (typeof experiences)[number]; i: number }
 }
 
 function Experience() {
+  const { t } = useLanguage();
   return (
     <section
       id="experience"
       className="max-w-[1200px] mx-auto px-8 py-32 scroll-mt-24 relative z-10"
     >
-      <SectionHead num="03" label="Experience" title="Where I've worked." />
+      <SectionHead num="03" label={t.experience.label} title={t.experience.title} />
       <ol className="relative">
         <div className="absolute left-[5px] md:left-[160px] top-2 bottom-2 w-px bg-orange/30" />
-        {experiences.map((x, i) => (
-          <ExperienceItem key={x.company} x={x} i={i} />
+        {t.experience.items.map((x, i) => (
+          <ExperienceItem key={x.company} x={x} i={i} currentLabel={t.experience.current} />
         ))}
       </ol>
     </section>
@@ -347,20 +437,21 @@ function Experience() {
 }
 
 function Skills() {
+  const { t } = useLanguage();
   const ref = useReveal<HTMLDivElement>();
   return (
     <section id="skills" className="max-w-[1200px] mx-auto px-8 py-32 scroll-mt-24 relative z-10">
-      <SectionHead num="04" label="Skills" title="What I work with." />
+      <SectionHead num="04" label={t.skills.label} title={t.skills.title} />
       <div ref={ref} className="reveal-stagger space-y-10">
-        {skillCategories.map((c) => (
+        {t.skills.categories.map((c) => (
           <div key={c.label} className="grid md:grid-cols-[120px_1fr] gap-8 items-start">
             <h3 className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground pt-2">
               {c.label}
             </h3>
             <div className="flex flex-wrap gap-2.5">
-              {c.tags.map((t) => (
-                <span key={t} className="skill-tag">
-                  {t}
+              {c.tags.map((tag) => (
+                <span key={tag} className="skill-tag">
+                  {tag}
                 </span>
               ))}
             </div>
@@ -371,7 +462,13 @@ function Skills() {
   );
 }
 
-function ProjectCard({ p }: { p: (typeof projects)[number] }) {
+function ProjectCard({
+  p,
+  viewDetailsLabel,
+}: {
+  p: Project;
+  viewDetailsLabel: string;
+}) {
   return (
     <article className={`project-card ${p.featured ? "featured md:col-span-2" : ""}`}>
       <div
@@ -386,17 +483,17 @@ function ProjectCard({ p }: { p: (typeof projects)[number] }) {
       <p className="mt-3 text-[15px] leading-[1.7] text-muted-foreground">{p.description}</p>
       <div className="mt-6 flex items-end justify-between gap-4 flex-wrap">
         <div className="flex flex-wrap gap-x-4 gap-y-2">
-          {p.tags.map((t) => (
+          {p.tags.map((tag) => (
             <span
-              key={t}
+              key={tag}
               className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground"
             >
-              {t}
+              {tag}
             </span>
           ))}
         </div>
         <a href="#contact" className="details">
-          View details <span className="a">→</span>
+          {viewDetailsLabel} <span className="a">→</span>
         </a>
       </div>
     </article>
@@ -404,13 +501,14 @@ function ProjectCard({ p }: { p: (typeof projects)[number] }) {
 }
 
 function Projects() {
+  const { t } = useLanguage();
   const ref = useReveal<HTMLDivElement>();
   return (
     <section id="projects" className="max-w-[1200px] mx-auto px-8 py-32 scroll-mt-24 relative z-10">
-      <SectionHead num="05" label="Projects" title="Things I've built." />
+      <SectionHead num="05" label={t.projects.label} title={t.projects.title} />
       <div ref={ref} className="reveal-stagger grid md:grid-cols-2 gap-6">
-        {projects.map((p) => (
-          <ProjectCard key={p.number} p={p} />
+        {t.projects.items.map((p) => (
+          <ProjectCard key={p.number} p={p} viewDetailsLabel={t.projects.viewDetails} />
         ))}
       </div>
     </section>
@@ -418,15 +516,16 @@ function Projects() {
 }
 
 function Certifications() {
+  const { t } = useLanguage();
   const ref = useReveal<HTMLDivElement>();
   return (
     <section
       id="certifications"
       className="max-w-[1200px] mx-auto px-8 py-32 scroll-mt-24 relative z-10"
     >
-      <SectionHead num="06" label="Certifications" title="How I prove it." />
+      <SectionHead num="06" label={t.certifications.label} title={t.certifications.title} />
       <div ref={ref} className="reveal-stagger grid grid-cols-2 lg:grid-cols-4 gap-5">
-        {certifications.map((c) => (
+        {t.certifications.items.map((c) => (
           <div key={c.name} className="cert-card">
             <div
               className="font-display font-bold text-orange leading-none"
@@ -444,10 +543,11 @@ function Certifications() {
 }
 
 function Contact() {
+  const { t } = useLanguage();
   const ref = useReveal<HTMLDivElement>();
   return (
     <section id="contact" className="max-w-[1200px] mx-auto px-8 py-32 scroll-mt-24 relative z-10">
-      <SectionHead num="07" label="Contact" title="Get in touch." />
+      <SectionHead num="07" label={t.contact.label} title={t.contact.titleLines.join(" ")} />
       <div ref={ref} className="reveal grid md:grid-cols-[3fr_2fr] gap-16 items-start">
         <div>
           <h3
@@ -458,18 +558,18 @@ function Contact() {
               letterSpacing: "-0.02em",
             }}
           >
-            Let's build
+            {t.contact.titleLines[0]}
             <br />
-            something
+            {t.contact.titleLines[1]}
             <br />
-            clean.
+            {t.contact.titleLines[2]}
           </h3>
           <p className="mt-8 text-lg text-muted-foreground max-w-md leading-[1.7]">
-            Available for CDI — Casablanca & Remote — from September 2026.
+            {t.contact.availability}
           </p>
         </div>
         <div>
-          {contactLinks.map((l) =>
+          {t.contact.links.map((l) =>
             l.href ? (
               <a
                 key={l.label}
@@ -501,11 +601,12 @@ function Contact() {
 }
 
 function Footer() {
+  const { t } = useLanguage();
   return (
     <footer className="relative z-10 max-w-[1200px] mx-auto px-8">
       <div className="h-px bg-border" />
       <p className="py-10 text-center text-xs text-ghost">
-        Hamza Moussaif{" "}
+        {t.footer.name}{" "}
         <span className="relative group" data-cursor="hover">
           ©
         </span>{" "}
@@ -516,12 +617,24 @@ function Footer() {
 }
 
 function Index() {
+  const { t, lang } = useLanguage();
+
+  useEffect(() => {
+    document.title = t.meta.title;
+  }, [t]);
+
   return (
     <main className="relative">
+      <a
+        href="#hero"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-100 focus:px-4 focus:py-2 focus:bg-ink focus:text-background focus:rounded"
+      >
+        {t.skipToContent}
+      </a>
       <div className="grain" />
       <Cursor />
       <Nav />
-      <Hero />
+      <Hero key={lang} />
       <About />
       <Experience />
       <Skills />

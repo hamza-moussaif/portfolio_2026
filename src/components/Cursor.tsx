@@ -7,6 +7,7 @@ export function Cursor() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.matchMedia("(pointer: coarse)").matches) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     let rx = window.innerWidth / 2,
       ry = window.innerHeight / 2;
