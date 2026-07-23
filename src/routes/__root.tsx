@@ -102,6 +102,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/34bd5b9c-03cc-47a7-b4df-e179c824b55e/id-preview-12d70d75--dcf9409c-c828-4c08-9f87-9e593c2bdd1b.lovable.app-1779813017886.png" },
     ],
     links: [
+      { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "stylesheet", href: appCss },
       {
         rel: "stylesheet",
